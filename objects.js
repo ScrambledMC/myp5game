@@ -2,6 +2,7 @@ class Player {
     WALK_SPEED = 0.25;
     ACCEL_SPEED = 0.025;
     BOUNCINESS = 1;
+    MIN_BOUNCE = 0.065;
     SWIM_SPEED = 0.7;
 
     constructor(x, y) {
@@ -80,8 +81,12 @@ class Player {
         var xMove = this.getXMovement(dist, walls);
         var moveX = xMove[0], bounceX = xMove[1];
 
-        if (moveX === 0)
+        if (moveX === 0) {
             this.velX = this.velX * -bounceX * this.BOUNCINESS;
+
+            if (bounceX && Math.abs(this.velX) < Math.abs(this.MIN_BOUNCE))
+                this.velX = 0;
+        }
 
         this.x = deFloat(this.x + moveX);
     }
@@ -90,8 +95,12 @@ class Player {
         var yMove = this.getYMovement(dist, walls);
         var moveY = yMove[0], bounceY = yMove[1];
 
-        if (moveY === 0)
+        if (moveY === 0) {
             this.velY = this.velY * -bounceY * this.BOUNCINESS;
+
+            if (bounceY && Math.abs(this.velY) < Math.abs(this.MIN_BOUNCE))
+                this.velY = 0;
+        }
 
         this.y = deFloat(this.y + moveY);
     }
