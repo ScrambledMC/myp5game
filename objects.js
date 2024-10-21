@@ -1,7 +1,8 @@
 class Player {
-    WALK_SPEED = 0.2;
-    ACCEL_SPEED = 0.02;
+    WALK_SPEED = 0.25;
+    ACCEL_SPEED = 0.025;
     BOUNCINESS = 1;
+    SWIM_SPEED = 0.7;
 
     constructor(x, y) {
         this.x = x;
@@ -10,9 +11,7 @@ class Player {
         this.h = 1;
 
         this.velX = 0;
-        this.targetVelX = 0;
         this.velY = 0;
-        this.targetVelY = 0;
         
         this.coins = 0;
     }
@@ -35,7 +34,7 @@ class Player {
     }
     
     isTouching(other) {
-        // does not detect touching top side, probably floating point error
+        // does not detect touching top side maybe, probably floating point error
         return this.x <= other.x + other.w && this.x + this.w >= other.x && this.y <= other.y + other.h && this.y + this.h >= other.y;
     }
 
@@ -98,28 +97,60 @@ class Player {
     }
 
 
-    updateMovement(keys, walls) {
-        this.targetVelX = 0;
-        this.targetVelY = 0;
+    getTargetVelX(keys, relSpeed) {
+        var output = 0;
 
         if (keys[37] || keys[65]) // left
-            this.targetVelX -= this.WALK_SPEED;
+            output -= this.WALK_SPEED;
         if (keys[39] || keys[68]) // right
-            this.targetVelX += this.WALK_SPEED;
+            output += this.WALK_SPEED;
+
+        return deFloat(output * relSpeed);
+    }
+
+    getTargetVelY(keys, relSpeed) {
+        var output = 0;
+
         if (keys[38] || keys[87]) // up
-            this.targetVelY += this.WALK_SPEED;
+            output += this.WALK_SPEED;
         if (keys[40] || keys[83]) // down
-            this.targetVelY -= this.WALK_SPEED;
+            output -= this.WALK_SPEED;
 
-        if (this.velX < this.targetVelX)
-            this.velX = Math.min(this.velX + this.ACCEL_SPEED, this.targetVelX)
-        else if (this.velX > this.targetVelX)
-            this.velX = Math.max(this.velX - this.ACCEL_SPEED, this.targetVelX)
+        return deFloat(output * relSpeed);
+    }
 
-        if (this.velY < this.targetVelY)
-            this.velY = Math.min(this.velY + this.ACCEL_SPEED, this.targetVelY)
-        else if (this.velY > this.targetVelY)
-            this.velY = Math.max(this.velY - this.ACCEL_SPEED, this.targetVelY)
+
+    getSpeedMultiplier(waters) {
+        var slowdown = 1;
+        var isInWater = false;
+
+        for (var water of waters)
+            if (this.isTouching(water)) {
+                isInWater = true;
+
+                if (water.thickness > slowdown)
+                    slowdown = water.thickness;
+            }
+
+        return 1/slowdown * (isInWater ? this.SWIM_SPEED : 1);
+    }
+
+
+    updateMovement(keys, walls, waters) {
+        var relSpeed = this.getSpeedMultiplier(waters);
+
+        var targetVelX = this.getTargetVelX(keys, relSpeed);
+        var targetVelY = this.getTargetVelY(keys, relSpeed);
+
+        if (this.velX < targetVelX)
+            this.velX = Math.min(this.velX + this.ACCEL_SPEED * relSpeed, targetVelX);
+        else if (this.velX > targetVelX)
+            this.velX = Math.max(this.velX - this.ACCEL_SPEED * relSpeed, targetVelX);
+
+        if (this.velY < targetVelY)
+            this.velY = Math.min(this.velY + this.ACCEL_SPEED, targetVelY);
+        else if (this.velY > targetVelY)
+            this.velY = Math.max(this.velY - this.ACCEL_SPEED, targetVelY);
 
         // corner collision gives priority to X
         this.moveX(this.velX, walls);
@@ -129,7 +160,7 @@ class Player {
         this.velY = deFloat(this.velY);
     }
 
-    
+
 
     teleport(x, y) {
         this.x = x;
@@ -137,11 +168,11 @@ class Player {
     }
 
 
-    update(keys, walls, coins) {
-        this.updateMovement(keys, walls);
+    update(keys, walls, waters, coins) {
+        this.updateMovement(keys, walls, waters);
 
         for (var i in coins)
-            if (this.isColliding(coins[i])) {
+            if (this.isTouching(coins[i])) {
                 coins.remove(parseInt(i));
                 this.coins ++;
             }
@@ -162,6 +193,24 @@ class Wall {
     render() {
         noStroke();
         fill(100, 100, 100);
+        rectangle(this.x, this.y, this.w, this.h);
+    }
+}
+
+
+
+class Water {
+    constructor(x, y, w, h, thickness) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.thickness = thickness;
+    }
+
+    render() {
+        noStroke();
+        fill(10, 10, 100);
         rectangle(this.x, this.y, this.w, this.h);
     }
 }
